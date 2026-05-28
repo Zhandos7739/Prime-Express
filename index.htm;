@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бот-помощник</title>
+    <style>
+        /* Общие настройки и фон */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0d14;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #ffffff;
+        }
+
+        /* Контейнер приложения */
+        .chat-container {
+            width: 100%;
+            max-width: 450px;
+            height: 90vh;
+            background-color: #151824;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Шапка */
+        .chat-header {
+            background-color: #202336;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #1a1c29;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background-color: #5c62d6;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 15px;
+        }
+        .header-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .bot-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        .bot-status {
+            font-size: 12px;
+            color: #a0a5b5;
+            display: flex;
+            align-items: center;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00c853;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        /* Зона сообщений */
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Сообщения */
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.bot {
+            background-color: #222536;
+            align-self: flex-start;
+            border-top-left-radius: 2px;
+        }
+        
+        .message.user {
+            background-color: #5b61e2;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        /* Кнопки быстрого ответа в чате */
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: -5px;
+            margin-bottom: 10px;
+            align-self: flex-start;
+        }
+        .quick-reply-btn {
+            background-color: #202336;
+            border: 1px solid #383d54;
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 15px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-reply-btn:hover {
+            background-color: #5b61e2;
+            border-color: #5b61e2;
+        }
+
+        /* Зона ввода */
+        .chat-input-area {
+            background-color: #202336;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #1a1c29;
+        }
+        .chat-input {
+            flex: 1;
+            background-color: #191b28;
+            border: 1px solid #2a2e42;
+            border-radius: 6px;
+            padding: 10px 15px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: #5b61e2;
+        }
+        .chat-input::placeholder {
+            color: #5e647e;
+        }
+        .chat-input:disabled {
+            background-color: #151824;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .send-btn {
+            background-color: #383d54;
+            border: none;
+            color: #ffffff;
+            padding: 0 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .send-btn:hover:not(:disabled) {
+            background-color: #4a506b;
+        }
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Скроллбар */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #151824;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2e42;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="avatar">P</div>
+        <div class="header-info">
+            <div class="bot-name">Бот-помощник</div>
+            <div class="bot-status">
+                <div class="status-dot"></div> В сети
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+        </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="user-input" class="chat-input" placeholder="Введите сообщение..." disabled>
+        <button id="send-btn" class="send-btn" disabled onclick="handleSend()">Отправить</button>
+    </div>
+</div>
+
+<script>
+    const webhookUrl = "https://discord.com/api/webhooks/1509423074955755604/8ATmmDAOuxS3LFzgPq7oNTuGo0oicx32f2vbz_fQZtErTfbXnyVJ_Uytv5g7pYeeq0Ns";
+    
+    // Элементы DOM
+    const chatMessages = document.getElementById('chat-messages');
+    const inputField = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    // Состояние логики
+    let currentState = "CATEGORY"; 
+    // Добавили поле quantity
+    let orderData = { category: '', item: '', quantity: '', city: '', name: '' };
+
+    // Запуск чата
+    window.onload = () => {
+        setTimeout(() => {
+            addBotMessage("Добрый день! Я бот-помощник сбора заявок для быстрой доставки важных предметов.");
+            setTimeout(() => {
+                addBotMessage("Пожалуйста, выберите что вы хотели бы заказать:");
+                showQuickReplies(["Аптечки", "Ассортимент нарколога", "Оружие"]);
+            }, 600);
+        }, 300);
+    };
+
+    // Отправка по Enter
+    inputField.addEventListener("keypress", function(event) {
+        if (event.key === "Enter" && !inputField.disabled) {
+            handleSend();
+        }
+    });
+
+    // Обработка кнопки "Отправить" и текстового ввода
+    function handleSend() {
+        const text = inputField.value.trim();
+        if (!text) return;
+        
+        addUserMessage(text);
+        inputField.value = '';
+        processStep(text);
+    }
+
+    // Обработка логики по шагам
+    function processStep(value) {
+        clearQuickReplies();
+
+        if (currentState === "CATEGORY") {
+            orderData.category = value;
+            if (value === "Аптечки") {
+                setTimeout(() => {
+                    addBotMessage("Какую аптечку вы бы хотели?");
+                    showQuickReplies(["Малую", "Большую"]);
+                    currentState = "ITEM_BUTTONS";
+                }, 500);
+            } else if (value === "Ассортимент нарколога") {
+                setTimeout(() => {
+                    addBotMessage("Пожалуйста, укажите лекарство:");
+                    setInputMode(true, "Название лекарства...");
+                    currentState = "ITEM_TEXT";
+                }, 500);
+            } else {
+                setTimeout(() => {
+                    addBotMessage("Пожалуйста укажите Оружие или его описание");
+                    setInputMode(true, "Название оружия...");
+                    currentState = "ITEM_TEXT";
+                }, 500);
+            }
+        } 
+        else if (currentState === "ITEM_BUTTONS" || currentState === "ITEM_TEXT") {
+            orderData.item = value;
+            setTimeout(() => {
+                addBotMessage("Укажите необходимое количество:");
+                setInputMode(true, "Например: 5 шт...");
+                currentState = "QUANTITY";
+            }, 500);
+        }
+        else if (currentState === "QUANTITY") {
+            orderData.quantity = value;
+            setTimeout(() => {
+                addBotMessage("Выберите город доставки:");
+                showQuickReplies(["Основной"]);
+                currentState = "CITY";
+            }, 500);
+        }
+        else if (currentState === "CITY") {
+            if (value !== "Основной") {
+                setTimeout(() => addBotMessage("Город не найден. Выберите 'Основной'"), 500);
+                showQuickReplies(["Основной"]);
+                return;
+            }
+            orderData.city = value;
+            setTimeout(() => {
+                addBotMessage("Напишите свое ИМЯ или Псевдоним");
+                setInputMode(true, "Ваше имя...");
+                currentState = "NAME";
+            }, 500);
+        }
+        else if (currentState === "NAME") {
+            orderData.name = value;
+            setInputMode(false, "Заявка отправляется...");
+            sendWebhook();
+        }
+    }
+
+    // Отправка вебхука
+    function sendWebhook() {
+        const payload = {
+            username: "RP Логистика",
+            embeds: [{
+                title: "📦 Новая Заявка",
+                color: 3447003,
+                fields: [
+                    { name: "👤 Имя / Псевдоним", value: orderData.name, inline: true },
+                    { name: "🏙 Город", value: orderData.city, inline: true },
+                    { name: "📁 Категория", value: orderData.category, inline: false },
+                    { name: "🛒 Детали заказа", value: orderData.item, inline: true },
+                    { name: "🔢 Количество", value: orderData.quantity, inline: true }
+                ]
+            }]
+        };
+
+        fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(response => {
+            if(response.ok) {
+                setTimeout(() => {
+                    addBotMessage("Отлично, ваша заявка принята, ожидайте доставки в скором времени с вами свяжутся.");
+                    setInputMode(false, "Заявка успешно отправлена!");
+                    currentState = "DONE";
+                }, 500);
+            } else {
+                addBotMessage("Произошла ошибка при отправке заявки.");
+                setInputMode(true, "Попробуйте снова...");
+            }
+        }).catch(err => {
+            addBotMessage("Ошибка сети при отправке.");
+            setInputMode(true, "Попробуйте снова...");
+        });
+    }
+
+    // Вспомогательные функции интерфейса
+    function addBotMessage(text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message bot';
+        msgDiv.textContent = text;
+        chatMessages.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function addUserMessage(text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message user';
+        msgDiv.textContent = text;
+        chatMessages.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function showQuickReplies(options) {
+        setInputMode(false, "Выберите вариант выше...");
+        const container = document.createElement('div');
+        container.className = 'quick-replies';
+        container.id = 'current-replies';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quick-reply-btn';
+            btn.textContent = opt;
+            btn.onclick = () => {
+                addUserMessage(opt);
+                processStep(opt);
+            };
+            container.appendChild(btn);
+        });
+        
+        chatMessages.appendChild(container);
+        scrollToBottom();
+    }
+
+    function clearQuickReplies() {
+        const replies = document.getElementById('current-replies');
+        if (replies) {
+            replies.remove();
+        }
+    }
+
+    function setInputMode(enabled, placeholder = "Введите сообщение...") {
+        inputField.disabled = !enabled;
+        sendBtn.disabled = !enabled;
+        inputField.placeholder = placeholder;
+        if (enabled) {
+            inputField.focus();
+        }
+    }
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
